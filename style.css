@@ -36,7 +36,7 @@ header {
   font-size: 16px;
 }
 
-search-bar button {
+.search-bar button {
   padding: 8px 16px;
   border: 1px solid #ddd;
   border-left: 0;
@@ -95,26 +95,32 @@ aside li:hover {
   overflow: hidden;
   transition: transform .1s;
   cursor: pointer;
-}
-
-.video-card:hover {
-  transform: translateY(-4px) scale(1.02);
+  /* Make the card itself have less vertical padding for a shorter appearance */
+  height: 170px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .video-card img {
   width: 100%;
-  /* Reduced height for a shorter video card thumbnail */
-  aspect-ratio: 16/5;
+  height: 80px; /* Explicitly set thumbnail height to make the card shorter */
   object-fit: cover;
+  display: block;
 }
 
 .video-info {
-  padding: 12px;
+  padding: 8px 12px 0 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .video-info h3 {
-  margin: 0 0 6px;
-  font-size: 18px;
+  margin: 0 0 4px;
+  font-size: 16px;
   color: #111;
   white-space: nowrap;
   overflow: hidden;
@@ -125,5 +131,5 @@ aside li:hover {
 .video-info p {
   margin: 0;
   color: #606060;
-  font-size: 14px;
+  font-size: 13px;
 }
