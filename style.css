@@ -115,6 +115,11 @@ aside li:hover {
   margin: 0 0 6px;
   font-size: 18px;
   color: #111;
+  /* NEW: Ensures long titles are visually truncated */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .video-info p {
