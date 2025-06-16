@@ -129,9 +129,7 @@ aside li:hover {
   font-size: 13px;
 }
 
+/* Hide the rest of the info (views, time) */
 .video-info .meta {
-  margin: 0;
-  color: #888;
-  font-size: 12px;
-  margin-top: 2px;
+  display: none;
 }
