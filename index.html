@@ -33,14 +33,14 @@
       <div class="video-card">
         <img src="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg" alt="Video thumbnail">
         <div class="video-info">
-          <h3>Sample Video Title That is Way Too Long</h3>
+          <h3>Sample Video Title That is Way Too Long and Should Be Truncated at Fifty Characters</h3>
           <p>Channel Name · 1M views · 1 year ago</p>
         </div>
       </div>
       <div class="video-card">
         <img src="https://i.ytimg.com/vi/3JZ_D3ELwOQ/hqdefault.jpg" alt="Video thumbnail">
         <div class="video-info">
-          <h3>Another Video Example</h3>
+          <h3>Another Video Example With a Very Long Title To Test Truncation</h3>
           <p>Another Channel · 500K views · 6 months ago</p>
         </div>
       </div>
@@ -48,11 +48,11 @@
     </section>
   </main>
   <script>
-    // Enforce a 20 character limit on all video titles
+    // Enforce a 50 character limit on all video titles
     document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('.video-info h3').forEach(function(el) {
-        if(el.textContent.length > 20) {
-          el.textContent = el.textContent.slice(0, 20) + '...';
+        if(el.textContent.length > 50) {
+          el.textContent = el.textContent.slice(0, 50) + '...';
         }
       });
     });
