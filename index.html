@@ -2,21 +2,38 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>YouTube Video Info Fetcher</title>
+  <title>YouTube UI Clone with API</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>YouTube Video Info Fetcher</h1>
-    <input id="videoIdInput" type="text" placeholder="Enter YouTube Video ID" value="dQw4w9WgXcQ">
-    <button id="fetchBtn">Fetch Info</button>
-    <div class="video-info-card" id="result" style="display:none;">
-      <h2 id="title"></h2>
-      <p><strong>Channel:</strong> <span id="channel"></span></p>
-      <p><strong>Uploaded:</strong> <span id="uploaded"></span></p>
+  <header>
+    <div class="logo">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_Logo_2017.svg" alt="YouTube Logo" />
     </div>
-    <p id="error" class="error"></p>
-  </div>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Paste a YouTube video ID">
+      <button id="searchBtn"><span>&#128269;</span></button>
+    </div>
+    <div class="user-menu">
+      <span class="avatar">👤</span>
+    </div>
+  </header>
+  <main>
+    <aside>
+      <nav>
+        <ul>
+          <li><span>🏠</span> Home</li>
+          <li><span>🔥</span> Trending</li>
+          <li><span>📚</span> Subscriptions</li>
+          <li><span>📺</span> Library</li>
+        </ul>
+      </nav>
+    </aside>
+    <section class="videos" id="videos">
+      <!-- Video cards will be injected here -->
+    </section>
+  </main>
   <script src="script.js"></script>
 </body>
 </html>
