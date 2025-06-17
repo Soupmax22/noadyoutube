@@ -1,4 +1,4 @@
-// You must provide your own YouTube Data API v3 key.
+// Replace with your YouTube Data API v3 key!
 const API_KEY = "AIzaSyBmWRgB4-2HXKkbSko1U5im_Ggzwn_fsFY";
 
 // Renders the main video card
@@ -26,6 +26,7 @@ function createVideoCard(video) {
 
 // Renders a recommended video card
 function createRecommendedCard(video) {
+  const videoId = video.id.videoId || video.id;
   const title = video.snippet.title.length > 40
     ? video.snippet.title.slice(0, 40) + "..."
     : video.snippet.title;
@@ -34,7 +35,7 @@ function createRecommendedCard(video) {
   const thumbnail = video.snippet.thumbnails.medium?.url || video.snippet.thumbnails.default.url;
 
   return `
-    <div class="recommended-card" onclick="fetchAndDisplayVideo('${video.id.videoId || video.id}')">
+    <div class="recommended-card" data-videoid="${videoId}">
       <div class="recommended-thumb">
         <img src="${thumbnail}" alt="Recommended thumbnail">
       </div>
@@ -60,13 +61,13 @@ async function fetchAndDisplayVideo(videoId) {
 
     if (data.error) {
       videosSection.innerHTML = `<div class="error-message">API Error: ${data.error.message}</div>`;
+      document.getElementById("recommended-list").innerHTML = "";
       return;
     }
 
     if (data.items && data.items.length > 0) {
       const card = createVideoCard(data.items[0]);
       videosSection.innerHTML = card;
-      // Fetch recommended videos based on this video's topic (if possible)
       fetchAndDisplayRecommended(videoId);
     } else {
       videosSection.innerHTML = `<div class="error-message">No video found for ID <code>${videoId}</code>.</div>`;
@@ -95,6 +96,7 @@ async function fetchAndDisplayRecommended(videoId) {
 
     if (data.items && data.items.length > 0) {
       recommendedSection.innerHTML = data.items.map(createRecommendedCard).join("");
+      setupRecommendedClick();
     } else {
       recommendedSection.innerHTML = "<div class='error-message'>No recommendations found.</div>";
     }
@@ -103,9 +105,19 @@ async function fetchAndDisplayRecommended(videoId) {
   }
 }
 
-// Global click handler for recommended cards
-window.fetchAndDisplayVideo = fetchAndDisplayVideo;
+// Set up click handlers for recommended videos
+function setupRecommendedClick() {
+  Array.from(document.querySelectorAll('.recommended-card')).forEach(card => {
+    card.addEventListener('click', function() {
+      const videoId = this.getAttribute('data-videoid');
+      document.getElementById('searchInput').value = videoId;
+      fetchAndDisplayVideo(videoId);
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    });
+  });
+}
 
+// Search button and Enter key
 document.getElementById('searchBtn').addEventListener('click', () => {
   const videoId = document.getElementById('searchInput').value.trim();
   fetchAndDisplayVideo(videoId);

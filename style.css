@@ -91,6 +91,10 @@ aside.recommended h2 {
   overflow: hidden;
   cursor: pointer;
   min-width: 0;
+  transition: background 0.1s;
+}
+.recommended-card:hover {
+  background: #f0f0f0;
 }
 .recommended-thumb {
   width: 120px;
@@ -135,7 +139,7 @@ aside.recommended h2 {
 }
 .videos {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 32px 16px;
   padding: 32px;
   flex: 1;
@@ -176,7 +180,7 @@ aside.recommended h2 {
 
 .video-info h3 {
   margin: 0 0 4px;
-  font-size: 16px;
+  font-size: 18px;
   color: #111;
   white-space: nowrap;
   overflow: hidden;
@@ -187,13 +191,13 @@ aside.recommended h2 {
 .video-info .channel {
   margin: 0;
   color: #606060;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .video-info .meta {
   margin: 0;
   color: #888;
-  font-size: 12px;
+  font-size: 13px;
   margin-top: 2px;
 }
 
