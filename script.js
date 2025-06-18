@@ -1,5 +1,5 @@
 // Replace with your YouTube Data API v3 key!
-const API_KEY = "AIzaSyBmWRgB4-2HXKkbSko1U5im_Ggzwn_fsFY";
+const API_KEY = "YOUR_API_KEY_HERE";
 
 // Renders the main video card
 function createVideoCard(video) {
@@ -84,6 +84,7 @@ async function fetchAndDisplayRecommended(videoId) {
   const recommendedSection = document.getElementById("recommended-list");
   recommendedSection.innerHTML = "<span>Loading recommended...</span>";
 
+  // The type=video parameter is REQUIRED for relatedToVideoId
   const endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=8&relatedToVideoId=${videoId}&key=${API_KEY}`;
   try {
     const resp = await fetch(endpoint);
