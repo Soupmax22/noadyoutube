@@ -1,18 +1,17 @@
 // Replace with your YouTube Data API v3 key!
 const API_KEY = "AIzaSyBmWRgB4-2HXKkbSko1U5im_Ggzwn_fsFY";
 
-// Utility function to detect Shorts by video ID prefix or by checking for "shorts" in the title/description
+// Utility function to detect Shorts by video title or description (case-insensitive, matches '#shorts', ' #shorts', or 'shorts' as a hashtag)
 function isShort(video) {
-  // Heuristic 1: Shorts often have a video ID starting with "shorts" in the search results, but not always.
-  // Heuristic 2: Shorts sometimes have the word "Shorts" in the title.
-  // Heuristic 3: Shorts URLs have a length of 11 characters, but so do regular videos.
-  // YouTube Data API does not directly flag Shorts, so best effort:
-  const title = video.snippet.title.toLowerCase();
-  // Filter out if title contains '#shorts' or 'shorts' at the end
+  if (!video.snippet) return false;
+  const t = video.snippet.title.toLowerCase();
+  const d = video.snippet.description ? video.snippet.description.toLowerCase() : "";
+  // Remove all whitespace, check for '#shorts' or ' #shorts' or ' shorts' (as hashtag, word, or at the end)
   return (
-    title.includes('#shorts')
-    || /\bshorts\b/.test(title)
-    || (video.snippet.description && video.snippet.description.toLowerCase().includes('#shorts'))
+    /#shorts\b/.test(t) ||
+    /#shorts\b/.test(d) ||
+    /\bshorts\b/.test(t) ||
+    /\bshorts\b/.test(d)
   );
 }
 
@@ -39,20 +38,32 @@ function createVideoCard(video) {
   `;
 }
 
-// Fetches and displays videos based on a search query
-async function fetchAndDisplayVideos(query) {
-  const videosSection = document.getElementById('videos');
-  videosSection.innerHTML = "";
-  if (!query) return;
+let nextPageToken = null;
+let currentQuery = "";
+let isLoading = false;
 
-  // Use YouTube search API to find videos based on the query
-  const endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(query)}&key=${API_KEY}`;
+// Fetches and displays videos based on a search query or "load more" for infinite scroll
+async function fetchAndDisplayVideos(query, append = false) {
+  const videosSection = document.getElementById('videos');
+  if (!append) {
+    videosSection.innerHTML = "";
+    nextPageToken = null;
+  }
+  if (!query) return;
+  isLoading = true;
+
+  let endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(query)}&key=${API_KEY}`;
+  if (nextPageToken) endpoint += `&pageToken=${nextPageToken}`;
+
   try {
     const resp = await fetch(endpoint);
     const data = await resp.json();
 
     if (data.error) {
-      videosSection.innerHTML = `<div class="error-message">API Error: ${data.error.message}</div>`;
+      if (!append) {
+        videosSection.innerHTML = `<div class="error-message">API Error: ${data.error.message}</div>`;
+      }
+      isLoading = false;
       return;
     }
 
@@ -60,22 +71,44 @@ async function fetchAndDisplayVideos(query) {
       // Filter out Shorts
       const filteredItems = data.items.filter(video => !isShort(video));
       if (filteredItems.length > 0) {
-        videosSection.innerHTML = filteredItems.map(createVideoCard).join("");
-      } else {
+        const cards = filteredItems.map(createVideoCard).join("");
+        videosSection.insertAdjacentHTML("beforeend", cards);
+      }
+      if (!append && filteredItems.length === 0) {
         videosSection.innerHTML = `<div class="error-message">No non-Shorts videos found for "<b>${query}</b>".</div>`;
       }
-    } else {
+    } else if (!append) {
       videosSection.innerHTML = `<div class="error-message">No videos found for "<b>${query}</b>".</div>`;
     }
+
+    nextPageToken = data.nextPageToken || null;
+    isLoading = false;
   } catch (e) {
-    videosSection.innerHTML = `<div class="error-message">Network or API error. Please check your API key and connection.</div>`;
+    if (!append) {
+      videosSection.innerHTML = `<div class="error-message">Network or API error. Please check your API key and connection.</div>`;
+    }
+    isLoading = false;
+  }
+}
+
+// Infinite scroll handler
+function handleScroll() {
+  const videosSection = document.getElementById('videos');
+  if (
+    !isLoading &&
+    nextPageToken &&
+    (
+      window.innerHeight + window.scrollY >= document.body.offsetHeight - 200
+    )
+  ) {
+    fetchAndDisplayVideos(currentQuery, true);
   }
 }
 
 // Search button and Enter key
 document.getElementById('searchBtn').addEventListener('click', () => {
-  const query = document.getElementById('searchInput').value.trim();
-  fetchAndDisplayVideos(query);
+  currentQuery = document.getElementById('searchInput').value.trim();
+  fetchAndDisplayVideos(currentQuery, false);
 });
 
 document.getElementById('searchInput').addEventListener('keypress', e => {
@@ -84,5 +117,9 @@ document.getElementById('searchInput').addEventListener('keypress', e => {
   }
 });
 
+// Infinite scroll event
+window.addEventListener('scroll', handleScroll);
+
 // Optionally, search for a default query at start
-// fetchAndDisplayVideos("Rick Astley");
+// currentQuery = "Rick Astley";
+// fetchAndDisplayVideos(currentQuery, false);
