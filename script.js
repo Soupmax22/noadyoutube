@@ -1,18 +1,26 @@
-// Replace with your YouTube Data API v3 key!
+// Always use this YouTube Data API v3 key:
 const API_KEY = "AIzaSyBmWRgB4-2HXKkbSko1U5im_Ggzwn_fsFY";
 
-// Utility function to detect Shorts by video title or description (case-insensitive, matches '#shorts', ' #shorts', or 'shorts' as a hashtag)
+// Utility function to detect Shorts by video title, description, and thumbnail aspect ratio
 function isShort(video) {
   if (!video.snippet) return false;
   const t = video.snippet.title.toLowerCase();
   const d = video.snippet.description ? video.snippet.description.toLowerCase() : "";
-  // Remove all whitespace, check for '#shorts' or ' #shorts' or ' shorts' (as hashtag, word, or at the end)
-  return (
+  // Remove if tagged or called Shorts
+  if (
     /#shorts\b/.test(t) ||
     /#shorts\b/.test(d) ||
     /\bshorts\b/.test(t) ||
     /\bshorts\b/.test(d)
-  );
+  ) {
+    return true;
+  }
+  // Heuristic: Shorts often have 9:16 (vertical) thumbnails
+  const thumb = video.snippet.thumbnails && video.snippet.thumbnails.high;
+  if (thumb && thumb.width && thumb.height && thumb.height > thumb.width) {
+    return true;
+  }
+  return false;
 }
 
 // Renders a video card for each video result
@@ -41,6 +49,7 @@ function createVideoCard(video) {
 let nextPageToken = null;
 let currentQuery = "";
 let isLoading = false;
+let seenVideoIds = new Set();
 
 // Fetches and displays videos based on a search query or "load more" for infinite scroll
 async function fetchAndDisplayVideos(query, append = false) {
@@ -48,11 +57,12 @@ async function fetchAndDisplayVideos(query, append = false) {
   if (!append) {
     videosSection.innerHTML = "";
     nextPageToken = null;
+    seenVideoIds = new Set();
   }
   if (!query) return;
   isLoading = true;
 
-  let endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(query)}&key=${API_KEY}`;
+  let endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=20&q=${encodeURIComponent(query)}&key=${API_KEY}`;
   if (nextPageToken) endpoint += `&pageToken=${nextPageToken}`;
 
   try {
@@ -68,8 +78,15 @@ async function fetchAndDisplayVideos(query, append = false) {
     }
 
     if (data.items && data.items.length > 0) {
-      // Filter out Shorts
-      const filteredItems = data.items.filter(video => !isShort(video));
+      // Filter out Shorts and duplicates
+      const filteredItems = data.items.filter(video => {
+        const vid = video.id && (video.id.videoId || video.id);
+        if (!vid) return false;
+        if (seenVideoIds.has(vid)) return false;
+        if (isShort(video)) return false;
+        seenVideoIds.add(vid);
+        return true;
+      });
       if (filteredItems.length > 0) {
         const cards = filteredItems.map(createVideoCard).join("");
         videosSection.insertAdjacentHTML("beforeend", cards);
