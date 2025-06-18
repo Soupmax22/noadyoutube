@@ -1,6 +1,11 @@
 // Always use this YouTube Data API v3 key:
 const API_KEY = "AIzaSyBmWRgB4-2HXKkbSko1U5im_Ggzwn_fsFY";
 
+let nextPageToken = null;
+let currentQuery = "";
+let isLoading = false;
+let seenVideoIds = new Set();
+
 // Utility to convert ISO 8601 duration to seconds (e.g., PT1M2S -> 62)
 function isoDurationToSeconds(iso) {
   const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -35,19 +40,29 @@ function createVideoCard(video) {
 }
 
 // Fetches and displays videos based on a search query, removing all Shorts and duplicates
-async function fetchAndDisplayVideos(query) {
+async function fetchAndDisplayVideos(query, append = false) {
   const videosSection = document.getElementById('videos');
-  videosSection.innerHTML = "";
+  if (!append) {
+    videosSection.innerHTML = "";
+    nextPageToken = null;
+    seenVideoIds = new Set();
+  }
   if (!query) return;
+  isLoading = true;
 
   // Use YouTube search API to find videos based on the query
-  const endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(query)}&key=${API_KEY}`;
+  let endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(query)}&key=${API_KEY}`;
+  if (nextPageToken) endpoint += `&pageToken=${nextPageToken}`;
+
   try {
     const resp = await fetch(endpoint);
     const data = await resp.json();
 
     if (data.error) {
-      videosSection.innerHTML = `<div class="error-message">API Error: ${data.error.message}</div>`;
+      if (!append) {
+        videosSection.innerHTML = `<div class="error-message">API Error: ${data.error.message}</div>`;
+      }
+      isLoading = false;
       return;
     }
 
@@ -71,31 +86,50 @@ async function fetchAndDisplayVideos(query) {
       }
 
       // Remove Shorts (≤ 60 seconds) and duplicates
-      const seen = new Set();
       const filteredItems = data.items.filter(video => {
         const vid = video.id.videoId || video.id;
-        if (!vid || seen.has(vid)) return false;
-        seen.add(vid);
+        if (!vid || seenVideoIds.has(vid)) return false;
+        seenVideoIds.add(vid);
         return idToDuration[vid] > 60; // Only allow videos longer than 60s
       });
 
       if (filteredItems.length > 0) {
-        videosSection.innerHTML = filteredItems.map(createVideoCard).join("");
-      } else {
+        const cards = filteredItems.map(createVideoCard).join("");
+        videosSection.insertAdjacentHTML(append ? "beforeend" : "afterbegin", cards);
+      } else if (!append && filteredItems.length === 0) {
         videosSection.innerHTML = `<div class="error-message">No non-Shorts videos found for "<b>${query}</b>".</div>`;
       }
-    } else {
+    } else if (!append) {
       videosSection.innerHTML = `<div class="error-message">No videos found for "<b>${query}</b>".</div>`;
     }
+
+    nextPageToken = data.nextPageToken || null;
+    isLoading = false;
   } catch (e) {
-    videosSection.innerHTML = `<div class="error-message">Network or API error. Please check your API key and connection.</div>`;
+    if (!append) {
+      videosSection.innerHTML = `<div class="error-message">Network or API error. Please check your API key and connection.</div>`;
+    }
+    isLoading = false;
+  }
+}
+
+// Infinite scroll handler
+function handleScroll() {
+  if (
+    !isLoading &&
+    nextPageToken &&
+    (
+      window.innerHeight + window.scrollY >= document.body.offsetHeight - 200
+    )
+  ) {
+    fetchAndDisplayVideos(currentQuery, true);
   }
 }
 
 // Search button and Enter key
 document.getElementById('searchBtn').addEventListener('click', () => {
-  const query = document.getElementById('searchInput').value.trim();
-  fetchAndDisplayVideos(query);
+  currentQuery = document.getElementById('searchInput').value.trim();
+  fetchAndDisplayVideos(currentQuery, false);
 });
 
 document.getElementById('searchInput').addEventListener('keypress', e => {
@@ -104,5 +138,9 @@ document.getElementById('searchInput').addEventListener('keypress', e => {
   }
 });
 
+// Infinite scroll event
+window.addEventListener('scroll', handleScroll);
+
 // Optionally, search for a default query at start
-// fetchAndDisplayVideos("Rick Astley");
+// currentQuery = "Rick Astley";
+// fetchAndDisplayVideos(currentQuery, false);
