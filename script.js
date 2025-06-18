@@ -1,5 +1,5 @@
 // Replace with your YouTube Data API v3 key!
-const API_KEY = "YOUR_API_KEY_HERE";
+const API_KEY = "AIzaSyBmWRgB4-2HXKkbSko1U5im_Ggzwn_fsFY";
 
 // Renders a video card for each video result
 function createVideoCard(video) {
