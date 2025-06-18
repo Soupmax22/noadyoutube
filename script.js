@@ -39,7 +39,7 @@ function createVideoCard(video) {
   `;
 }
 
-// Fetches and displays videos based on a search query, removing all Shorts and duplicates
+// Fetches and displays at least 12 non-Shorts, non-duplicate videos, using multiple pages if needed
 async function fetchAndDisplayVideos(query, append = false) {
   const videosSection = document.getElementById('videos');
   if (!append) {
@@ -50,67 +50,80 @@ async function fetchAndDisplayVideos(query, append = false) {
   if (!query) return;
   isLoading = true;
 
-  // Use YouTube search API to find videos based on the query
-  let endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(query)}&key=${API_KEY}`;
-  if (nextPageToken) endpoint += `&pageToken=${nextPageToken}`;
+  let collectedVideos = [];
+  let localNextPage = nextPageToken;
+  let tries = 0;
 
-  try {
+  while (collectedVideos.length < 12 && tries < 5) {
+    // YouTube API search: get a batch of results
+    let endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(query)}&key=${API_KEY}`;
+    if (localNextPage) endpoint += `&pageToken=${localNextPage}`;
+
     const resp = await fetch(endpoint);
     const data = await resp.json();
 
     if (data.error) {
-      if (!append) {
+      if (!append && collectedVideos.length === 0) {
         videosSection.innerHTML = `<div class="error-message">API Error: ${data.error.message}</div>`;
       }
       isLoading = false;
       return;
     }
 
-    if (data.items && data.items.length > 0) {
-      // Get all video IDs
-      const videoIds = data.items
-        .map(video => video.id.videoId || video.id)
-        .filter(Boolean);
+    if (!data.items || data.items.length === 0) break;
 
-      // Fetch details (duration) for all videos
-      const detailsEndpoint = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds.join(',')}&key=${API_KEY}`;
-      const detailsResp = await fetch(detailsEndpoint);
-      const detailsData = await detailsResp.json();
+    // Get all video IDs in this batch
+    const videoIds = data.items
+      .map(video => video.id.videoId || video.id)
+      .filter(Boolean);
 
-      // Map videoId -> duration in seconds
-      const idToDuration = {};
-      if (detailsData.items) {
-        detailsData.items.forEach(item => {
-          idToDuration[item.id] = isoDurationToSeconds(item.contentDetails.duration);
-        });
-      }
+    // Fetch details (duration) for all videos in this batch
+    const detailsEndpoint = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds.join(',')}&key=${API_KEY}`;
+    const detailsResp = await fetch(detailsEndpoint);
+    const detailsData = await detailsResp.json();
 
-      // Remove Shorts (≤ 60 seconds) and duplicates
-      const filteredItems = data.items.filter(video => {
-        const vid = video.id.videoId || video.id;
-        if (!vid || seenVideoIds.has(vid)) return false;
-        seenVideoIds.add(vid);
-        return idToDuration[vid] > 60; // Only allow videos longer than 60s
+    // Map videoId -> duration in seconds
+    const idToDuration = {};
+    if (detailsData.items) {
+      detailsData.items.forEach(item => {
+        idToDuration[item.id] = isoDurationToSeconds(item.contentDetails.duration);
       });
+    }
 
-      if (filteredItems.length > 0) {
-        const cards = filteredItems.map(createVideoCard).join("");
-        videosSection.insertAdjacentHTML(append ? "beforeend" : "afterbegin", cards);
-      } else if (!append && filteredItems.length === 0) {
-        videosSection.innerHTML = `<div class="error-message">No non-Shorts videos found for "<b>${query}</b>".</div>`;
+    // Remove Shorts (≤ 60 seconds) and duplicates
+    for (const video of data.items) {
+      const vid = video.id.videoId || video.id;
+      if (
+        vid &&
+        !seenVideoIds.has(vid) &&
+        idToDuration[vid] > 60
+      ) {
+        collectedVideos.push(video);
+        seenVideoIds.add(vid);
+        if (collectedVideos.length === 12) break;
       }
-    } else if (!append) {
-      videosSection.innerHTML = `<div class="error-message">No videos found for "<b>${query}</b>".</div>`;
     }
 
-    nextPageToken = data.nextPageToken || null;
-    isLoading = false;
-  } catch (e) {
-    if (!append) {
-      videosSection.innerHTML = `<div class="error-message">Network or API error. Please check your API key and connection.</div>`;
-    }
-    isLoading = false;
+    localNextPage = data.nextPageToken || null;
+    // Stop if no more pages
+    if (!localNextPage) break;
+    tries++;
   }
+
+  nextPageToken = localNextPage || null;
+
+  if (collectedVideos.length > 0) {
+    const cards = collectedVideos.map(createVideoCard).join("");
+    if (append) {
+      videosSection.insertAdjacentHTML("beforeend", cards);
+    } else {
+      videosSection.innerHTML = cards;
+    }
+  } else if (!append) {
+    videosSection.innerHTML = `<div class="error-message">No non-Shorts videos found for "<b>${query}</b>".</div>`;
+  }
+
+  isLoading = false;
 }
 
 // Infinite scroll handler
