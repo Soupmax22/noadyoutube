@@ -1,6 +1,21 @@
 // Replace with your YouTube Data API v3 key!
 const API_KEY = "AIzaSyBmWRgB4-2HXKkbSko1U5im_Ggzwn_fsFY";
 
+// Utility function to detect Shorts by video ID prefix or by checking for "shorts" in the title/description
+function isShort(video) {
+  // Heuristic 1: Shorts often have a video ID starting with "shorts" in the search results, but not always.
+  // Heuristic 2: Shorts sometimes have the word "Shorts" in the title.
+  // Heuristic 3: Shorts URLs have a length of 11 characters, but so do regular videos.
+  // YouTube Data API does not directly flag Shorts, so best effort:
+  const title = video.snippet.title.toLowerCase();
+  // Filter out if title contains '#shorts' or 'shorts' at the end
+  return (
+    title.includes('#shorts')
+    || /\bshorts\b/.test(title)
+    || (video.snippet.description && video.snippet.description.toLowerCase().includes('#shorts'))
+  );
+}
+
 // Renders a video card for each video result
 function createVideoCard(video) {
   const title = video.snippet.title.length > 50
@@ -42,7 +57,13 @@ async function fetchAndDisplayVideos(query) {
     }
 
     if (data.items && data.items.length > 0) {
-      videosSection.innerHTML = data.items.map(createVideoCard).join("");
+      // Filter out Shorts
+      const filteredItems = data.items.filter(video => !isShort(video));
+      if (filteredItems.length > 0) {
+        videosSection.innerHTML = filteredItems.map(createVideoCard).join("");
+      } else {
+        videosSection.innerHTML = `<div class="error-message">No non-Shorts videos found for "<b>${query}</b>".</div>`;
+      }
     } else {
       videosSection.innerHTML = `<div class="error-message">No videos found for "<b>${query}</b>".</div>`;
     }
