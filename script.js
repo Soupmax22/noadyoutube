@@ -1,23 +1,32 @@
 // Always use this YouTube Data API v3 key:
 const API_KEY = "AIzaSyBmWRgB4-2HXKkbSko1U5im_Ggzwn_fsFY";
 
-// Utility function to detect Shorts by video title, description, and thumbnail aspect ratio
+let nextPageToken = null;
+let currentQuery = "";
+let isLoading = false;
+let seenVideoIds = new Set();
+
+// Helper function to check if a video is likely a Short
 function isShort(video) {
   if (!video.snippet) return false;
-  const t = video.snippet.title.toLowerCase();
-  const d = video.snippet.description ? video.snippet.description.toLowerCase() : "";
-  // Remove if tagged or called Shorts
-  if (
-    /#shorts\b/.test(t) ||
-    /#shorts\b/.test(d) ||
-    /\bshorts\b/.test(t) ||
-    /\bshorts\b/.test(d)
-  ) {
+  const title = video.snippet.title.toLowerCase();
+  const desc = video.snippet.description ? video.snippet.description.toLowerCase() : "";
+  // Exclude if title or description contains '#shorts' or 'shorts' as a word
+  if (/#shorts\b/.test(title) || /\bshorts\b/.test(title) ||
+      /#shorts\b/.test(desc) || /\bshorts\b/.test(desc)) {
     return true;
   }
-  // Heuristic: Shorts often have 9:16 (vertical) thumbnails
+  // Exclude if the video is from the "YouTube Shorts" channel (common for official Shorts)
+  if (video.snippet.channelTitle && video.snippet.channelTitle.toLowerCase().includes('shorts')) {
+    return true;
+  }
+  // Exclude if the video has a vertical thumbnail (aspect ratio ≤ 9:16)
   const thumb = video.snippet.thumbnails && video.snippet.thumbnails.high;
-  if (thumb && thumb.width && thumb.height && thumb.height > thumb.width) {
+  if (thumb && thumb.width && thumb.height && thumb.height / thumb.width > 1.1) {
+    return true;
+  }
+  // Exclude if description contains a common Shorts URL
+  if (desc.includes("youtube.com/shorts") || desc.includes("youtu.be/shorts")) {
     return true;
   }
   return false;
@@ -45,11 +54,6 @@ function createVideoCard(video) {
     </div>
   `;
 }
-
-let nextPageToken = null;
-let currentQuery = "";
-let isLoading = false;
-let seenVideoIds = new Set();
 
 // Fetches and displays videos based on a search query or "load more" for infinite scroll
 async function fetchAndDisplayVideos(query, append = false) {
@@ -110,7 +114,6 @@ async function fetchAndDisplayVideos(query, append = false) {
 
 // Infinite scroll handler
 function handleScroll() {
-  const videosSection = document.getElementById('videos');
   if (
     !isLoading &&
     nextPageToken &&
