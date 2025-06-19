@@ -6,6 +6,22 @@ let currentQuery = "";
 let isLoading = false;
 let seenVideoIds = new Set();
 
+// List of words/phrases for basic adult content filtering
+const adultWords = [
+  "sex","porn","xxx","nude","naked","blowjob","anal","cum","orgasm","hentai",
+  "incest","rape","pussy","dick","cock","boobs","tits","bitch","slut","milf",
+  "masturbate","masturbation","fuck","fucking","ejaculation","fisting","fetish",
+  "hentai","lesbian","gay","erotic","suck","ass","asshole","strip","striptease",
+  "vagina","penis","breast","bukkake","bdsm","bondage","orgy","threesome","twink",
+  "arse","arsehole","clit","clitoris","cunnilingus","deepthroat","dildo","dominatrix"
+];
+
+// Returns true if the string contains adult words (case-insensitive)
+function isAdultContent(text) {
+  const lower = text.toLowerCase();
+  return adultWords.some(word => lower.includes(word));
+}
+
 // Utility to convert ISO 8601 duration to seconds (e.g., PT1M2S -> 62)
 function isoDurationToSeconds(iso) {
   const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -16,11 +32,10 @@ function isoDurationToSeconds(iso) {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-// Renders a video card for each video result
+// Renders a video card for each video result, with title limited to 100 chars
 function createVideoCard(video) {
-  const title = video.snippet.title.length > 50
-    ? video.snippet.title.slice(0, 50) + "..."
-    : video.snippet.title;
+  let title = video.snippet.title;
+  if (title.length > 100) title = title.slice(0, 100) + "...";
   const channel = video.snippet.channelTitle;
   const published = new Date(video.snippet.publishedAt).toLocaleString();
   const thumbnail = video.snippet.thumbnails.high?.url || video.snippet.thumbnails.default.url;
@@ -42,7 +57,6 @@ function createVideoCard(video) {
 
 // Show YouTube nocookie embed fullscreen overlay
 function showVideoFullscreen(videoId) {
-  // Create overlay if not present
   let overlay = document.getElementById('yt-fullscreen-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -84,13 +98,10 @@ function showVideoFullscreen(videoId) {
     `;
     document.head.appendChild(style);
 
-    // Close on click
     overlay.querySelector('#yt-fullscreen-close').onclick = () => {
       overlay.style.display = 'none';
       overlay.querySelector('#yt-fullscreen-iframe').src = '';
     };
-
-    // Close on overlay background click (but not iframe or button)
     overlay.onclick = (e) => {
       if (e.target === overlay) {
         overlay.style.display = 'none';
@@ -98,13 +109,12 @@ function showVideoFullscreen(videoId) {
       }
     };
   }
-  // Set iframe src and show overlay
   const iframe = overlay.querySelector('#yt-fullscreen-iframe');
   iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&fs=1`;
   overlay.style.display = 'flex';
 }
 
-// Fetches and displays at least 12 non-Shorts, non-duplicate videos, using multiple pages if needed
+// Fetches and displays at least 12 non-Shorts, non-duplicate, non-adult videos, using multiple pages if needed
 async function fetchAndDisplayVideos(query, append = false) {
   const videosSection = document.getElementById('videos');
   if (!append) {
@@ -155,13 +165,15 @@ async function fetchAndDisplayVideos(query, append = false) {
       });
     }
 
-    // Remove Shorts (≤ 60 seconds) and duplicates
+    // Remove Shorts (≤ 60 seconds), duplicates, and adult content
     for (const video of data.items) {
       const vid = video.id.videoId || video.id;
       if (
         vid &&
         !seenVideoIds.has(vid) &&
-        idToDuration[vid] > 60
+        idToDuration[vid] > 60 &&
+        !isAdultContent(video.snippet.title) &&
+        !isAdultContent(video.snippet.description || "")
       ) {
         collectedVideos.push(video);
         seenVideoIds.add(vid);
@@ -170,7 +182,6 @@ async function fetchAndDisplayVideos(query, append = false) {
     }
 
     localNextPage = data.nextPageToken || null;
-    // Stop if no more pages
     if (!localNextPage) break;
     tries++;
   }
@@ -193,7 +204,7 @@ async function fetchAndDisplayVideos(query, append = false) {
       };
     });
   } else if (!append) {
-    videosSection.innerHTML = `<div class="error-message">No non-Shorts videos found for "<b>${query}</b>".</div>`;
+    videosSection.innerHTML = `<div class="error-message">No non-Shorts, non-adult videos found for "<b>${query}</b>".</div>`;
   }
 
   isLoading = false;
