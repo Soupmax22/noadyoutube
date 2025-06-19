@@ -1,159 +1,168 @@
+/* Mobile and responsive style for YouTube search app, removes side buttons */
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: #f9f9f9;
-  min-height: 100vh;
+  background: #181818;
+  color: #fff;
 }
 
-header {
+#searchBar {
+  width: 100vw;
+  padding: 24px 0 16px 0;
+  background: #202020;
   display: flex;
+  justify-content: center;
   align-items: center;
-  justify-content: space-between;
-  background: #fff;
-  padding: 10px 24px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-  position: sticky;
-  top: 0;
-  z-index: 100;
 }
 
-.logo img {
-  height: 26px;
+#searchInput {
+  width: 70vw;
+  max-width: 400px;
+  font-size: 1.1em;
+  padding: 10px 12px;
+  border-radius: 20px;
+  border: none;
+  outline: none;
+  margin-right: 12px;
+  background: #292929;
+  color: #fff;
+  box-sizing: border-box;
 }
 
-.search-bar {
-  flex: 1;
-  max-width: 600px;
-  display: flex;
-  align-items: center;
-  margin: 0 32px;
-}
-
-.search-bar input {
-  flex: 1;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 2px 0 0 2px;
-  font-size: 16px;
-}
-
-.search-bar button {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-left: 0;
-  background: #f8f8f8;
-  border-radius: 0 2px 2px 0;
+#searchBtn {
+  padding: 10px 22px;
+  border-radius: 20px;
+  border: none;
+  background: #ff2222;
+  color: #fff;
+  font-weight: bold;
+  font-size: 1em;
   cursor: pointer;
+  transition: background 0.2s;
 }
 
-.user-menu .avatar {
-  font-size: 24px;
+#searchBtn:hover {
+  background: #cc1818;
 }
 
-main {
+#videos {
   display: flex;
-  align-items: flex-start;
-}
-
-aside {
-  width: 200px;
-  background: #fff;
-  box-shadow: 1px 0 0 #eee;
-  padding-top: 16px;
-  height: 100%;
-  min-height: unset;
-  align-self: flex-start;
-}
-
-aside ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-aside li {
-  padding: 12px 24px;
-  font-size: 16px;
-  color: #333;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-aside li:hover {
-  background: #f0f0f0;
-}
-
-.videos {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 32px 16px;
-  padding: 32px;
-  flex: 1;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
 .video-card {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-  overflow: hidden;
-  transition: transform .1s;
+  background: #232323;
+  border-radius: 12px;
+  margin: 10px;
+  width: 320px;
+  max-width: 95vw;
+  box-shadow: 0 2px 16px #0009;
+  transition: transform 0.12s;
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
-
+.video-card:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 6px 32px #000b;
+}
 .thumbnail-wrapper {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
+  aspect-ratio: 16/9;
+  background: #111;
   overflow: hidden;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-
-.video-card img {
+.thumbnail-wrapper img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
-
 .video-info {
-  padding: 8px 12px 0 12px;
+  padding: 14px 16px 10px 16px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
 }
-
 .video-info h3 {
-  margin: 0 0 4px;
-  font-size: 18px;
-  color: #111;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
+  font-size: 1.08em;
+  margin: 0 0 4px 0;
+  color: #fff;
+  font-weight: 500;
+  word-break: break-word;
 }
-
 .video-info .channel {
-  margin: 0;
-  color: #606060;
-  font-size: 14px;
+  color: #bbb;
+  font-size: 0.97em;
+  margin-bottom: 2px;
 }
-
 .video-info .meta {
-  margin: 0;
   color: #888;
-  font-size: 13px;
-  margin-top: 2px;
+  font-size: 0.94em;
 }
 
 .error-message {
-  color: #cc0000;
-  padding: 16px;
-  background: #fff8f8;
-  border-radius: 6px;
-  margin: 24px 0;
+  background: #2d1010;
+  color: #fad7d7;
+  padding: 22px;
+  margin: 24px auto;
+  border-radius: 16px;
+  max-width: 400px;
   text-align: center;
+  font-size: 1.18em;
+}
+
+@media (max-width: 600px) {
+  #searchBar {
+    flex-direction: column;
+    padding: 16px 0 10px 0;
+  }
+  #searchInput {
+    width: 90vw;
+    font-size: 1em;
+    margin: 0 0 10px 0;
+    max-width: unset;
+  }
+  #searchBtn {
+    width: 90vw;
+    font-size: 1em;
+    margin-left: 0;
+    margin-bottom: 2px;
+  }
+  #videos {
+    padding: 0;
+  }
+  .video-card {
+    width: 98vw;
+    max-width: 99vw;
+    margin: 7px 0;
+    border-radius: 0;
+  }
+  .video-info {
+    padding: 10px 8px 7px 8px;
+  }
+}
+
+#yt-fullscreen-overlay {
+  /* Overlay already styled in JS for fullscreen, but ensure on mobile: */
+  z-index: 99999 !important;
+}
+
+#yt-fullscreen-iframe-wrapper {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 56vw !important;
+  max-height: 56vw !important;
+}
+
+/* Remove any side buttons (if any were present, by class or id) */
+.sidebar, .side-buttons, #sideButtons, .left-buttons, .right-buttons {
+  display: none !important;
 }
