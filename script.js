@@ -1,5 +1,5 @@
 // Always use this YouTube Data API v3 key:
-const API_KEY = "AIzaSyBmWRgB4-2HXKkbSko1U5im_Ggzwn_fsFY";
+const API_KEY = "AIzaSyBeIMfZSGuL9XCRNRocpqxvDf32O3Qy3Es";
 
 let nextPageToken = null;
 let currentQuery = "";
