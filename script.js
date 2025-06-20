@@ -1,131 +1,241 @@
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f9f9f9;
-  min-height: 100vh;
+// Always use this YouTube Data API v3 key:
+const API_KEY = "AIzaSyBmWRgB4-2HXKkbSko1U5im_Ggzwn_fsFY";
+
+let nextPageToken = null;
+let currentQuery = "";
+let isLoading = false;
+let seenVideoIds = new Set();
+
+// List of words/phrases for basic adult content filtering
+const adultWords = [
+  "sex","porn","xxx","nude","naked","blowjob","anal","cum","orgasm","hentai",
+  "incest","rape","pussy","dick","cock","boobs","tits","bitch","slut","milf",
+  "masturbate","masturbation","fuck","fucking","ejaculation","fisting","fetish",
+  "hentai","lesbian","gay","erotic","suck","ass","asshole","strip","striptease",
+  "vagina","penis","breast","bukkake","bdsm","bondage","orgy","threesome","twink",
+  "arse","arsehole","clit","clitoris","cunnilingus","deepthroat","dildo","dominatrix"
+];
+
+// Returns true if the string contains adult words (case-insensitive)
+function isAdultContent(text) {
+  const lower = text.toLowerCase();
+  return adultWords.some(word => lower.includes(word));
 }
 
-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #fff;
-  padding: 10px 24px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+// Utility to convert ISO 8601 duration to seconds (e.g., PT1M2S -> 62)
+function isoDurationToSeconds(iso) {
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const hours = parseInt(match[1] || 0, 10);
+  const minutes = parseInt(match[2] || 0, 10);
+  const seconds = parseInt(match[3] || 0, 10);
+  return hours * 3600 + minutes * 60 + seconds;
 }
 
-.logo img {
-  height: 26px;
+// Renders a video card for each video result, with title limited to 100 chars
+function createVideoCard(video) {
+  let title = video.snippet.title;
+  if (title.length > 100) title = title.slice(0, 100) + "...";
+  const channel = video.snippet.channelTitle;
+  const published = new Date(video.snippet.publishedAt).toLocaleString();
+  const thumbnail = video.snippet.thumbnails.high?.url || video.snippet.thumbnails.default.url;
+  const videoId = video.id.videoId || video.id;
+
+  return `
+    <div class="video-card" data-video-id="${videoId}">
+      <div class="thumbnail-wrapper">
+        <img src="${thumbnail}" alt="Video thumbnail">
+      </div>
+      <div class="video-info">
+        <h3 title="${video.snippet.title}">${title}</h3>
+        <div class="channel">${channel}</div>
+        <div class="meta">${published}</div>
+      </div>
+    </div>
+  `;
 }
 
-.search-bar {
-  flex: 1;
-  max-width: 600px;
-  display: flex;
-  align-items: center;
-  margin: 0 32px;
+// Show YouTube nocookie embed fullscreen overlay
+function showVideoFullscreen(videoId) {
+  let overlay = document.getElementById('yt-fullscreen-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'yt-fullscreen-overlay';
+    overlay.innerHTML = `
+      <div id="yt-fullscreen-iframe-wrapper">
+        <iframe id="yt-fullscreen-iframe" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>
+        <button id="yt-fullscreen-close">&times;</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Style overlay
+    const style = document.createElement('style');
+    style.textContent = `
+      #yt-fullscreen-overlay {
+        position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.96); z-index: 9999; display: flex; align-items: center; justify-content: center;
+        transition: opacity 0.2s;
+      }
+      #yt-fullscreen-iframe-wrapper {
+        position: relative; width: 90vw; height: 80vh; max-width:1280px; max-height: 720px; display: flex; align-items: center; justify-content: center;
+      }
+      #yt-fullscreen-iframe {
+        width: 100%; height: 100%; border-radius: 12px; box-shadow: 0 4px 40px #000a;
+        background: #000;
+      }
+      #yt-fullscreen-close {
+        position: absolute; top: -30px; right: -30px; background: #111; color: #fff; border: none; border-radius: 50%; width: 48px; height: 48px;
+        font-size: 32px; cursor: pointer; z-index: 10001; box-shadow: 0 2px 8px #0007;
+        display: flex; align-items: center; justify-content: center;
+      }
+      @media (max-width: 800px) {
+        #yt-fullscreen-iframe-wrapper { width: 100vw; height: 50vw; max-width: 100vw; max-height: 56vw; }
+      }
+      @media (max-width: 600px) {
+        #yt-fullscreen-iframe-wrapper { width: 100vw; height: 56vw; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    overlay.querySelector('#yt-fullscreen-close').onclick = () => {
+      overlay.style.display = 'none';
+      overlay.querySelector('#yt-fullscreen-iframe').src = '';
+    };
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        overlay.style.display = 'none';
+        overlay.querySelector('#yt-fullscreen-iframe').src = '';
+      }
+    };
+  }
+  const iframe = overlay.querySelector('#yt-fullscreen-iframe');
+  iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&fs=1`;
+  overlay.style.display = 'flex';
 }
 
-.search-bar input {
-  flex: 1;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 2px 0 0 2px;
-  font-size: 16px;
+// Fetches and displays at least 12 non-Shorts, non-duplicate, non-adult videos, using multiple pages if needed
+async function fetchAndDisplayVideos(query, append = false) {
+  const videosSection = document.getElementById('videos');
+  if (!append) {
+    videosSection.innerHTML = "";
+    nextPageToken = null;
+    seenVideoIds = new Set();
+  }
+  if (!query) return;
+  isLoading = true;
+
+  let collectedVideos = [];
+  let localNextPage = nextPageToken;
+  let tries = 0;
+
+  while (collectedVideos.length < 12 && tries < 8) {
+    // YouTube API search: get a batch of results
+    let endpoint = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=25&q=${encodeURIComponent(query)}&key=${API_KEY}`;
+    if (localNextPage) endpoint += `&pageToken=${localNextPage}`;
+
+    const resp = await fetch(endpoint);
+    const data = await resp.json();
+
+    if (data.error) {
+      if (!append && collectedVideos.length === 0) {
+        videosSection.innerHTML = `<div class="error-message">API Error: ${data.error.message}</div>`;
+      }
+      isLoading = false;
+      return;
+    }
+
+    if (!data.items || data.items.length === 0) break;
+
+    // Get all video IDs in this batch
+    const videoIds = data.items
+      .map(video => video.id.videoId || video.id)
+      .filter(Boolean);
+
+    // Fetch details (duration) for all videos in this batch
+    const detailsEndpoint = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds.join(',')}&key=${API_KEY}`;
+    const detailsResp = await fetch(detailsEndpoint);
+    const detailsData = await detailsResp.json();
+
+    // Map videoId -> duration in seconds
+    const idToDuration = {};
+    if (detailsData.items) {
+      detailsData.items.forEach(item => {
+        idToDuration[item.id] = isoDurationToSeconds(item.contentDetails.duration);
+      });
+    }
+
+    // Remove Shorts (≤ 60 seconds), duplicates, and adult content
+    for (const video of data.items) {
+      const vid = video.id.videoId || video.id;
+      if (
+        vid &&
+        !seenVideoIds.has(vid) &&
+        idToDuration[vid] > 60 &&
+        !isAdultContent(video.snippet.title) &&
+        !isAdultContent(video.snippet.description || "")
+      ) {
+        collectedVideos.push(video);
+        seenVideoIds.add(vid);
+        if (collectedVideos.length === 12) break;
+      }
+    }
+
+    localNextPage = data.nextPageToken || null;
+    if (!localNextPage) break;
+    tries++;
+  }
+
+  nextPageToken = localNextPage || null;
+
+  if (collectedVideos.length > 0) {
+    const cards = collectedVideos.map(createVideoCard).join("");
+    if (append) {
+      videosSection.insertAdjacentHTML("beforeend", cards);
+    } else {
+      videosSection.innerHTML = cards;
+    }
+
+    // Attach click listeners for fullscreen embed
+    Array.from(document.querySelectorAll('.video-card')).forEach(card => {
+      card.onclick = () => {
+        const vid = card.getAttribute('data-video-id');
+        if (vid) showVideoFullscreen(vid);
+      };
+    });
+  } else if (!append) {
+    videosSection.innerHTML = `<div class="error-message">No non-Shorts, non-adult videos found for "<b>${query}</b>".</div>`;
+  }
+
+  isLoading = false;
 }
 
-.search-bar button {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-left: 0;
-  background: #f8f8f8;
-  border-radius: 0 2px 2px 0;
-  cursor: pointer;
+// Infinite scroll handler
+function handleScroll() {
+  if (
+    !isLoading &&
+    nextPageToken &&
+    (
+      window.innerHeight + window.scrollY >= document.body.offsetHeight - 200
+    )
+  ) {
+    fetchAndDisplayVideos(currentQuery, true);
+  }
 }
 
-.user-menu .avatar {
-  font-size: 24px;
-}
+// Search button and Enter key
+document.getElementById('searchBtn').addEventListener('click', () => {
+  currentQuery = document.getElementById('searchInput').value.trim();
+  fetchAndDisplayVideos(currentQuery, false);
+});
 
-main {
-  display: flex;
-  align-items: flex-start;
-}
+document.getElementById('searchInput').addEventListener('keypress', e => {
+  if (e.key === 'Enter') {
+    document.getElementById('searchBtn').click();
+  }
+});
 
-aside {
-  width: 200px;
-  background: #fff;
-  box-shadow: 1px 0 0 #eee;
-  padding-top: 16px;
-  height: 100%;
-  min-height: unset;
-  align-self: flex-start;
-}
+// Infinite scroll event
+window.addEventListener('scroll', handleScroll);
 
-aside ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-aside li {
-  padding: 12px 24px;
-  font-size: 16px;
-  color: #333;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-aside li:hover {
-  background: #f0f0f0;
-}
-
-/* Results block style for text list mode */
-.videos {
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
-  padding: 32px;
-  flex: 1;
-}
-
-.video-block {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-  padding: 18px 18px 12px 18px;
-  margin-bottom: 6px;
-}
-
-.video-title {
-  font-size: 20px;
-  color: #111;
-  font-weight: bold;
-  margin-bottom: 3px;
-  word-break: break-word;
-}
-
-.video-channel {
-  color: #606060;
-  font-size: 16px;
-  margin-bottom: 1px;
-}
-
-.video-date {
-  color: #888;
-  font-size: 14px;
-}
-
-.error-message {
-  color: #cc0000;
-  padding: 16px;
-  background: #fff8f8;
-  border-radius: 6px;
-  margin: 24px 0;
-  text-align: center;
-}
+// No autosearch!
