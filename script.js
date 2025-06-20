@@ -16,7 +16,6 @@ const adultWords = [
   "arse","arsehole","clit","clitoris","cunnilingus","deepthroat","dildo","dominatrix"
 ];
 
-// Returns true if the string contains adult words (case-insensitive)
 function isAdultContent(text) {
   const lower = text.toLowerCase();
   return adultWords.some(word => lower.includes(word));
@@ -32,7 +31,7 @@ function isoDurationToSeconds(iso) {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-// Renders a video card for each video result, with title limited to 100 chars
+// Compact, vertical, grid-style video card (fills the screen with 12 cards)
 function createVideoCard(video) {
   let title = video.snippet.title;
   if (title.length > 100) title = title.slice(0, 100) + "...";
